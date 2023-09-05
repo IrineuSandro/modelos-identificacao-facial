@@ -12,18 +12,24 @@ from sklearn.metrics import accuracy_score
 import pickle
 
 dataset = 'dataset'
-
-detector = MTCNN()
 target_size = (160,160)
+
+# modelo de extração de caracteristicas faciais (FaceNet)
+embedder = FaceNet()
+
+# modelo de segmentação de rostos (MTCNN)
+detector = MTCNN()
 
 # extrair rosto de uma única imagem
 def extract_face(filename):
+    print(filename)
     img = cv2.imread(filename)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     x,y,w,h = detector.detect_faces(img)[0]['box']
     x,y = abs(x), abs(y)
     face = img[y:y+h, x:x+w]
     face_arr = cv2.resize(face, target_size)
+    print(face_arr.shape)
     return face_arr
 
 # carregar as imagens de rostos, dentro da pasta de uma label
@@ -35,26 +41,9 @@ def load_faces(path):
             single_face = extract_face(filename)
             FACES.append(single_face)
         except Exception as e:
+            print(e)
             pass
     return FACES
-
-x = []
-y = []
-
-# carregar todas as imagens de rostos, dentro de todas as pastas de labels
-for sub_dir in os.listdir(dataset):
-    path = dataset +'/'+ sub_dir+'/'
-    FACES = load_faces(path)
-    labels = [sub_dir for _ in range(len(FACES))]
-    print(f"{sub_dir} carregado com sucesso: {len(labels)} rostos.")
-    x.extend(FACES)
-    y.extend(labels)
-
-X, Y = np.asarray(x), np.asarray(y)
-
-
-# modelo de extração de caracteristicas faciais (FaceNet)
-embedder = FaceNet()
 
 def get_embedding(face_img):
     face_img = face_img.astype('float32') # 3D(160x160x3)
@@ -64,12 +53,58 @@ def get_embedding(face_img):
     return yhat[0] # 512D image (1x1x512)
 
 
-EMBEDDED_X = []
+if os.path.exists('faces_embeddings_done_4classes.npz'):
+    print('Carregando classes salvas antes...')
+    data = np.load('faces_embeddings_done_4classes.npz')
+    EMBEDDED_X, Y = data['arr_0'], data['arr_1']
+else:
+    x = []
+    y = []
 
-for img in X:
-    EMBEDDED_X.append(get_embedding(img))
+    # carregar todas as imagens de rostos, dentro de todas as pastas de labels
+    for sub_dir in os.listdir(dataset):
+        path = dataset +'/'+ sub_dir+'/'
+        FACES = load_faces(path)
+        labels = [sub_dir for _ in range(len(FACES))]
+        print(f"{sub_dir} carregado com sucesso: {len(labels)} rostos.")
+        x.extend(FACES)
+        y.extend(labels)
 
-EMBEDDED_X = np.asarray(EMBEDDED_X)
+    X, Y = np.asarray(x), np.asarray(y)
+
+    EMBEDDED_X = []
+
+    for img in X:
+        EMBEDDED_X.append(get_embedding(img))
+
+    EMBEDDED_X = np.asarray(EMBEDDED_X)
+
+    np.savez_compressed('faces_embeddings_done_4classes.npz', EMBEDDED_X, Y)
+
+# itera pelo dataset, e se a label não estiver em Y, adiciona a label a Y, as imagens a X, e as embeddings a EMBEDDED_X
+print('Adicionando novas classes ao modelo...')
+y = Y.tolist()
+x = EMBEDDED_X.tolist()
+
+adicionou = False
+for sub_dir in os.listdir(dataset):
+    if sub_dir not in Y:
+        adicionou = True
+        print(f"Adicionando {sub_dir} ao modelo...")
+        path = dataset +'/'+ sub_dir+'/'
+        FACES = load_faces(path)
+        labels = [sub_dir for _ in range(len(FACES))]
+        print(f"{sub_dir} carregado com sucesso: {len(FACES)} rostos.")
+        y.extend(labels)
+        for img in FACES:
+            x.append(get_embedding(img))
+
+print(Y)
+
+if adicionou:
+    EMBEDDED_X, Y = np.asarray(x), np.asarray(y)
+    print('Salvando novas classes...')
+    np.savez_compressed('faces_embeddings_done_4classes.npz', EMBEDDED_X, Y)
 
 encoder = LabelEncoder()
 encoder.fit(Y)
