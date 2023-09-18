@@ -2,6 +2,10 @@ from ultralytics import YOLO
 import cv2
 import argparse
 
+import torch
+
+torch.cuda.set_device(0)
+
 def run(source="source.mp4"):
 
     yolov8_model_path = YOLO('models/yolov8n-seg.pt')
@@ -14,7 +18,7 @@ def run(source="source.mp4"):
             break
         
         
-        results = yolov8_model_path.predict(frame, save=False, classes=[0,1])
+        results = yolov8_model_path.predict(frame, save=False, classes=[0,1], device='gpu')
         annotated_frame = results[0].plot()
         cv2.imshow("Yolo", annotated_frame)
 
