@@ -11,7 +11,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import pickle
 
-dataset = 'dataset'
+dataset = 'dataset_simples'
+# backup_treinamento = 'faces_embeddings_done_4classes.npz'
+backup_treinamento = 'teste.npz'
 target_size = (160,160)
 
 # modelo de extração de caracteristicas faciais (FaceNet)
@@ -53,9 +55,9 @@ def get_embedding(face_img):
     return yhat[0] # 512D image (1x1x512)
 
 
-if os.path.exists('faces_embeddings_done_4classes.npz'):
+if os.path.exists(backup_treinamento):
     print('Carregando classes salvas antes...')
-    data = np.load('faces_embeddings_done_4classes.npz')
+    data = np.load(backup_treinamento)
     EMBEDDED_X, Y = data['arr_0'], data['arr_1']
 else:
     x = []
@@ -79,7 +81,7 @@ else:
 
     EMBEDDED_X = np.asarray(EMBEDDED_X)
 
-    np.savez_compressed('faces_embeddings_done_4classes.npz', EMBEDDED_X, Y)
+    np.savez_compressed(backup_treinamento, EMBEDDED_X, Y)
 
 # itera pelo dataset, e se a label não estiver em Y, adiciona a label a Y, as imagens a X, e as embeddings a EMBEDDED_X
 print('Adicionando novas classes ao modelo...')
@@ -104,7 +106,7 @@ print(Y)
 if adicionou:
     EMBEDDED_X, Y = np.asarray(x), np.asarray(y)
     print('Salvando novas classes...')
-    np.savez_compressed('faces_embeddings_done_4classes.npz', EMBEDDED_X, Y)
+    np.savez_compressed(backup_treinamento, EMBEDDED_X, Y)
 
 encoder = LabelEncoder()
 encoder.fit(Y)
