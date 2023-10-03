@@ -46,7 +46,7 @@ def run(source="source.mp4"):
             h, w, c = result.orig_img.shape
 
             #Choose the most desired bbox in case there are multiple detections
-            bbox_x1, bbox_y1, bbox_x2, bbox_y2,imwrite = choose_bbox(bbox,
+            bbox_x1, bbox_y1, bbox_x2, bbox_y2 = choose_bbox(bbox,
                                                             image_size=(w,h),
                                                             center_coordinates=(0.5,0.5),
                                                             input_xyxy=True,
