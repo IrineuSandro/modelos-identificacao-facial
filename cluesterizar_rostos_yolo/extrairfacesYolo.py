@@ -5,6 +5,7 @@ import torch
 import os
 from choose_one_bbox import choose_bbox
 import cv2
+from imageio import imwrite
 # definir o path dos rostos
 dataset_path = 'rostos/'
 # faz um novo path caso nao tenha
@@ -17,10 +18,20 @@ device = 0 if torch.cuda.is_available() else "cpu"
 
 # float entre 0 e 1 para quantos % de cada lado sera aumentado, 0.01 = 10%
 EXPAND_RATIO = 0.01
-def run(source="source.mp4"):
+def run(source="source.mp4", save=bool):
     # definir o modelo que o yolo vai usar 
     yolov8_model_path = YOLO('models/yolov8n-seg.pt')
 
+    weights_name = "yolov8n"
+
+    # definir se vai salvar
+
+    if save and (not OUTPUT_PATH):
+        OUTPUT_PATH = os.path.join(dataset_path.split(os.path.sep)[-1], weights_name + "__output")
+        if not os.path.exists(OUTPUT_PATH):
+            os.mkdir(OUTPUT_PATH)
+        
+    
     #fazer a captura de video
     cap = cv2.VideoCapture(source)
 
@@ -92,6 +103,7 @@ def run(source="source.mp4"):
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', type = str, default=0, help = 'video file path, leave blank if you want to use the webcam')
+    parser.add_argument("--save", type=bool, default=False, help= 'Choose if you want to save faces or not')
     return parser.parse_args()
 
 def main(opt):
