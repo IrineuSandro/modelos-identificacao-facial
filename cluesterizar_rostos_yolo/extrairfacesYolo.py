@@ -1,4 +1,3 @@
-
 from ultralytics import YOLO
 import argparse
 import torch
@@ -6,31 +5,23 @@ import os
 from choose_one_bbox import choose_bbox
 import cv2
 from imageio import imwrite
-# definir o path dos rostos
-dataset_path = 'rostos/'
-# faz um novo path caso nao tenha
-if not os.path.exists(dataset_path):
-    os.makedirs(dataset_path)
 
+def extrair_faces(source: str):
 
-# testa usar a gpu por meio do pytourch
-device = 0 if torch.cuda.is_available() else "cpu"
+    # testa usar a gpu por meio do pytourch
+    device = 0 if torch.cuda.is_available() else "cpu"
 
-# float entre 0 e 1 para quantos % de cada lado sera aumentado, 0.01 = 10%
-EXPAND_RATIO = 0.01
-def run(source="source.mp4", save=bool):
-    # definir o modelo que o yolo vai usar 
-    yolov8_model_path = YOLO('models/yolov8n-seg.pt')
+    
+    # float entre 0 e 1 para quantos % de cada lado sera aumentado, 0.01 = 10%
+    # penso em transformar isso em argumento depois
+    EXPAND_RATIO = 0.01
+    # definir o modelo que o yolo vai usar/ esse foi o melhor modelo que vi para faces
+    yolov8_model_path = YOLO('models/yolov8n-face.pt')
 
     weights_name = "yolov8n"
 
-    # definir se vai salvar
-
-    if save and (not OUTPUT_PATH):
-        OUTPUT_PATH = os.path.join(dataset_path.split(os.path.sep)[-1], weights_name + "__output")
-        if not os.path.exists(OUTPUT_PATH):
-            os.mkdir(OUTPUT_PATH)
-        
+    # Array para armazenar os rotos 
+    output_images = []
     
     #fazer a captura de video
     cap = cv2.VideoCapture(source)
@@ -43,7 +34,6 @@ def run(source="source.mp4", save=bool):
         # Pegar os resultados dado pelo yolo
         results = yolov8_model_path.predict(frame, save=False, classes=[0,1], device=device)
         
-
         # Ver rosto por rosto
         for result in results:
             
@@ -84,31 +74,10 @@ def run(source="source.mp4", save=bool):
             output_image = cv2.cvtColor(result.orig_img[top:bottom, left:right], cv2.COLOR_BGR2RGB)
             
 
-            
-            #Check if save option is True
-            #Get the save path
-            save_name = os.path.join(dataset_path, image_name)
-            
-            #Save the cropped image
-            imwrite(save_name, output_image)
-                
-            # Opcao para so fechar o video
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break  
+        # Opcao para so fechar o video
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break  
+    return output_images
     # Libere o objeto de captura e feche a janela
     cap.release()
     cv2.destroyAllWindows()            
-
-
-def parse_opt():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--source', type = str, default=0, help = 'video file path, leave blank if you want to use the webcam')
-    parser.add_argument("--save", type=bool, default=False, help= 'Choose if you want to save faces or not')
-    return parser.parse_args()
-
-def main(opt):
-    run(**vars(opt))
-
-if __name__ == '__main__':
-    opt = parse_opt()
-    main(opt)   
