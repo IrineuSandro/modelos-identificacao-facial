@@ -6,35 +6,32 @@ from choose_one_bbox import choose_bbox
 import cv2
 from imageio import imwrite
 
-def extrair_faces(source: str):
 
-    # testa usar a gpu por meio do pytourch
+# I change the commentars to english bc i want to post this on gh
+def extract_face(cap: cv2.VideoCapture):
+
+    # Check if we can use the gpu, otherwise, use the cpu
     device = 0 if torch.cuda.is_available() else "cpu"
 
-    
-    # float entre 0 e 1 para quantos % de cada lado sera aumentado, 0.01 = 10%
-    # penso em transformar isso em argumento depois
+    # floating pointing betwent 0 and 1 to define how much will be increased on which side
+    # this could be a arg to, think about change it 
     EXPAND_RATIO = 0.01
-    # definir o modelo que o yolo vai usar/ esse foi o melhor modelo que vi para faces
+
+    # Define the yolov8 model that we will use/ This is one pre-trained model that i find it here  https://github.com/akanametov/yolov8-face
     yolov8_model_path = YOLO('models/yolov8n-face.pt')
 
-    weights_name = "yolov8n"
-
-    # Array para armazenar os rotos 
+    # Array to save the faces files
     output_images = []
-    
-    #fazer a captura de video
-    cap = cv2.VideoCapture(source)
 
     while cap.isOpened():
-        # Verifica se deu certo ler o video 
+        # Check if the video cap is ok
         sucess, frame = cap.read()
         if not sucess:
             break
-        # Pegar os resultados dado pelo yolo
+        # get the predict result from yolo
         results = yolov8_model_path.predict(frame, save=False, classes=[0,1], device=device)
         
-        # Ver rosto por rosto
+        # get the bbox for which face detect
         for result in results:
             
             #Extract the image name
@@ -71,13 +68,7 @@ def extrair_faces(source: str):
             bottom = int(min(bbox_y2+EXPAND_RATIO*cropped_image_h, h))
             
             #Obtain the cropped image
-            output_image = cv2.cvtColor(result.orig_img[top:bottom, left:right], cv2.COLOR_BGR2RGB)
-            
-
-        # Opcao para so fechar o video
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break  
+            target_size = (160,160) # here we define a default size of image
+            output_image = [cv2.resize(image, target_size) for image in output_images]
+            output_images.append(output_image)
     return output_images
-    # Libere o objeto de captura e feche a janela
-    cap.release()
-    cv2.destroyAllWindows()            
