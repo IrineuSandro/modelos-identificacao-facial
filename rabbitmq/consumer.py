@@ -1,29 +1,26 @@
 import cv2
 import os
 import numpy as np
-from mtcnn import MTCNN
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from mtcnn.mtcnn import MTCNN
 from keras_facenet import FaceNet
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+import pika
 
 dataset = 'dataset_simples'
 # backup_treinamento = 'faces_embeddings_done_4classes.npz'
 backup_treinamento = 'teste.npz'
 target_size = (160,160)
 
-print(2)
-
 # modelo de extração de caracteristicas faciais (FaceNet)
 embedder = FaceNet()
 
-print(3)
-
 # modelo de segmentação de rostos (MTCNN)
 detector = MTCNN()
-
-print(4)
 
 # extrair rosto de uma única imagem
 def extract_face(filename):
@@ -124,39 +121,24 @@ ypreds_test = model.predict(X_test)
 
 print(accuracy_score(Y_test,ypreds_test))
 
-cap = cv2.VideoCapture(0)
+host = 'localhost'
+queue_name = 'classificacao'
 
-# segmentador de faces (face cascade)
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Inicialize a conexão com o servidor RabbitMQ
+connection = pika.BlockingConnection(pika.ConnectionParameters(host = host))
+channel = connection.channel()
+channel.queue_declare(queue=queue_name)
 
 while True:
-    ret, frame = cap.read()
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    method_frame, header_frame, face_roi_bytes = channel.basic_get(queue=queue_name)
 
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-    for (x, y, w, h) in faces:
+    if face_roi_bytes:
+        face_roi = cv2.imdecode(np.frombuffer(face_roi_bytes, np.uint8), cv2.IMREAD_COLOR)
 
-        face_roi_image = frame[y:y+h, x:x+w]
-        face_roi = cv2.resize(face_roi_image, (160,160))
-        face_roi = get_embedding(face_roi)
-
-        face_roi = [face_roi]
-        label = model.predict(face_roi)
-        confidence = model.predict_proba(face_roi)[0].max()*100
+        # Classificação
+        label = model.predict([face_roi])
+        confidence = model.predict_proba([face_roi])[0].max() * 100
 
         person = str(encoder.inverse_transform(label)[0])
 
         print(f"Previu {person} com {confidence:.2f}%")
-
-        cv2.putText(frame, person, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-
-        cv2.imshow('ROI', face_roi_image)
-
-    cv2.imshow('Reconhecimento Facial', frame)
-
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
